@@ -23,8 +23,11 @@ public class LonelyTwitterActivity extends Activity {
 	private static final String FILENAME = "file.sav";
 	private EditText bodyText;
 	private ListView oldTweetsList;
-	
-	/** Called when the activity is first created. */
+	private Happy happy = new Happy();
+	private Angry angry=new Angry();
+	private Happy happy2 = new Happy(new Date(1000,9,30));
+	/** Called when the activity is first created.
+	 * Overall Tweet class that does all the saving and getting new tweets with emotions*/
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -39,7 +42,23 @@ public class LonelyTwitterActivity extends Activity {
 			public void onClick(View v) {
 				setResult(RESULT_OK);
 				String text = bodyText.getText().toString();
-				saveInFile(text, new Date(System.currentTimeMillis()));
+				//I tried to use the mood() method of the moodABC class
+				text=text+happy.mood();
+				text=text+angry.mood();
+				tweets tweet=new tweets(text);
+				//I set the mood of all the tweets to this (adding to the mood list)
+				tweet.setMood(happy);
+				tweet.setMood(angry);
+				tweet.setMood(happy2);
+				text=text+"Here are the moods and date:\n";
+				// Iterated through the mood list to see if I got all my moods displayed
+				ArrayList<moodABC> moodlist=tweet.getMoodLst();
+				for (int i = 0; i < moodlist.size()&&moodlist!=null; i++) {
+					text=text+moodlist.get(i).mood()+" and "+ moodlist.get(i).getDate().toString();
+				}
+				//Fixed the tweets with the new message
+				tweet.setTweet(text);
+				saveInFile(tweet.getTweet(), new Date(System.currentTimeMillis()));
 				finish();
 
 			}
