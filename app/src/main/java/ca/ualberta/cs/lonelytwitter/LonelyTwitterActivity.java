@@ -26,6 +26,11 @@ public class LonelyTwitterActivity extends Activity {
 
     private Button saveButton;
 
+    private ImageButton pictureButton;
+    private Bitmap thumbnail;
+
+    static final int REQUEST_IMAGE_CAPTURE = 1234;
+
     public ArrayAdapter<Tweet> getAdapter() {
         return adapter;
     }
@@ -41,35 +46,6 @@ public class LonelyTwitterActivity extends Activity {
         bodyText = (EditText) findViewById(R.id.tweetMessage);
         oldTweetsList = (ListView) findViewById(R.id.tweetsList);
 
-
-
-        saveButton = (Button) findViewById(R.id.saveButton);
-        saveButton.setOnClickListener(new View.OnClickListener() {
-
-            public void onClick(View v) {
-                String text = bodyText.getText().toString();
-                NormalTweet latestTweet = new NormalTweet(text);
-
-                tweets.add(latestTweet);
-
-
-                adapter.notifyDataSetChanged();
-
-                // Add the tweet to Elasticsearch
-                ElasticsearchTweetController.AddTweetTask addTweetTask = new ElasticsearchTweetController.AddTweetTask();
-                addTweetTask.execute(latestTweet);
-
-
-                setResult(RESULT_OK);
-            }
-        });
-    }
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-
-        // Get the latest tweets from Elasticsearch
         ElasticsearchTweetController.GetTweetsTask getTweetsTask = new ElasticsearchTweetController.GetTweetsTask();
 //        getTweetsTask.execute("test");
         getTweetsTask.execute("");
@@ -81,11 +57,100 @@ public class LonelyTwitterActivity extends Activity {
         } catch (ExecutionException e) {
             e.printStackTrace();
         }
+        adapter = new TweetAdapter(this, tweets);
+        oldTweetsList.setAdapter(adapter);
+
+        pictureButton = (ImageButton) findViewById(R.id.pictureButton);
+        pictureButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                if (intent.resolveActivity(getPackageManager()) != null) {
+                    startActivityForResult(intent, REQUEST_IMAGE_CAPTURE);
+                }
+            }
+        });
+
+        saveButton = (Button) findViewById(R.id.saveButton);
+        saveButton.setOnClickListener(new View.OnClickListener() {
+
+            public void onClick(View v) {
+                String text = bodyText.getText().toString();
+                NormalTweet latestTweet = new NormalTweet(text);
+
+                tweets.add(latestTweet);
+
+                latestTweet.addThumbnail(thumbnail);
+
+                // Add the tweet to Elasticsearch
+                ElasticsearchTweetController.AddTweetTask addTweetTask = new ElasticsearchTweetController.AddTweetTask();
+                addTweetTask.execute(latestTweet);
+
+                bodyText.setText("");
+                pictureButton.setImageResource(android.R.color.transparent);
+                thumbnail = null;
+
+                setResult(RESULT_OK);
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                ElasticsearchTweetController.GetTweetsTask getTweetsTask = new ElasticsearchTweetController.GetTweetsTask();
+                getTweetsTask.execute("");
+                try {
+                    ArrayList<NormalTweet> temp = new ArrayList<NormalTweet>();
+                    temp = new ArrayList<NormalTweet>();
+                    temp = getTweetsTask.get();
+                    tweets.clear();
+                    tweets.addAll(getTweetsTask.get());
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (ExecutionException e) {
+                    e.printStackTrace();
+                }
+
+//        adapter = new ArrayAdapter<Tweet>(this, R.layout.list_item, tweets);
+                // Binds tweet list with view, so when our array updates, the view updates with it
+                adapter.notifyDataSetChanged();
+            }
+        });
+
+
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        ElasticsearchTweetController.GetTweetsTask getTweetsTask = new ElasticsearchTweetController.GetTweetsTask();
+        getTweetsTask.execute("");
+        try {
+            ArrayList<NormalTweet> temp = new ArrayList<NormalTweet>();
+            temp = new ArrayList<NormalTweet>();
+            temp = getTweetsTask.get();
+            tweets.clear();
+            tweets.addAll(getTweetsTask.get());
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
 
 //        adapter = new ArrayAdapter<Tweet>(this, R.layout.list_item, tweets);
         // Binds tweet list with view, so when our array updates, the view updates with it
-        adapter = new TweetAdapter(this, tweets); /* NEW! */
         oldTweetsList.setAdapter(adapter);
+        adapter.notifyDataSetChanged();
+
+//        adapter = new ArrayAdapter<Tweet>(this, R.layout.list_item, tweets);
+        // Binds tweet list with view, so when our array updates, the view updates with it
+
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data){
+        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK){
+            Bundle extras = data .getExtras();
+            thumbnail = (Bitmap) extras.get("data");
+            pictureButton.setImageBitmap(thumbnail);
+        }
+    }
 }
